@@ -62,7 +62,7 @@ mod tests {
 
     #[test]
     fn test_multipoint_commitment() {
-        let n = 4;
+        let n = 64;
         let mut rng = test_rng();
 
         let tau = Fr::from(2u64);
