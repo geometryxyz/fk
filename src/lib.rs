@@ -28,7 +28,7 @@ mod tests {
     };
     use ark_std::test_rng;
 
-    use crate::{Toeplitz, next_pow2};
+    use crate::{next_pow2, toeplitz::UpperToeplitz};
 
     pub fn commit<E: PairingEngine>(
         srs: &[E::G1Affine],
@@ -95,7 +95,7 @@ mod tests {
         srs_proj.reverse();
 
         let poly = DensePolynomial::<Fr>::rand(n, &mut rng);
-        let t = Toeplitz::from_poly(&poly);
+        let t = UpperToeplitz::from_poly(&poly);
 
         let h_commitments = t.mul_by_vec(&srs_proj)[..n].to_vec();
 
@@ -134,7 +134,7 @@ mod tests {
         let poly = DensePolynomial::<Fr>::rand(d, &mut rng);
         let poly_clone = poly.clone();
 
-        let t = Toeplitz::from_poly(&poly);
+        let t = UpperToeplitz::from_poly(&poly);
 
         let mut h_commitments = t.mul_by_vec(&srs_proj)[..next_pow_2_deg].to_vec();
         let zero_cms = vec![G1Projective::zero(); n - next_pow_2_deg];

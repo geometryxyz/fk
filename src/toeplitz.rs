@@ -1,9 +1,9 @@
 use std::iter;
 
 use ark_ff::{FftField, Zero};
-use ark_poly::{domain::DomainCoeff, univariate::DensePolynomial, Polynomial};
+use ark_poly::{domain::DomainCoeff, univariate::DensePolynomial, Polynomial, UVPolynomial};
 
-use crate::{circulant::Circulant, next_pow2};
+use crate::{circulant::{Circulant, is_pow_2}, next_pow2};
 
 pub fn is_toeplitz<T: PartialEq>(elems: &Vec<Vec<T>>) {
     let n = elems.len();
@@ -29,6 +29,40 @@ fn check_diagonal<T: PartialEq>(elems: &Vec<Vec<T>>, i_start: usize, j_start: us
     }
 }
 
+pub struct UpperToeplitz<F: FftField> {
+    pub(crate) repr: Vec<F>
+}
+
+impl<F: FftField> UpperToeplitz<F> {
+    pub fn from_poly(poly: &DensePolynomial<F>) -> Self {
+        let mut repr = poly.coeffs()[1..].to_vec();
+        let next_pow2_degree = next_pow2(poly.degree());
+        let to_extend = vec![F::zero(); next_pow2_degree - poly.degree()];
+        repr.extend_from_slice(&to_extend); 
+        assert!(is_pow_2(repr.len()));
+        Self { repr }
+    }
+
+    pub fn mul_by_vec<T: DomainCoeff<F> + std::ops::MulAssign<F> + Zero>(&self, x: &[T]) -> Vec<T> {
+        let c = self.to_circulant();
+        let zeroes = vec![T::zero(); x.len()];
+        c.mul_by_vec(&[x, zeroes.as_slice()].concat())
+    }
+
+    pub fn to_circulant(&self) -> Circulant<F, F> {
+        let fm = self.repr.last().unwrap().clone();
+        let mut circulant_repr = vec![F::zero(); self.repr.len() + 1];
+
+        circulant_repr[0] = fm; 
+        circulant_repr[self.repr.len()] = fm; 
+
+        circulant_repr.extend_from_slice(&self.repr[..self.repr.len() - 1]);
+        assert_eq!(circulant_repr.len(), self.repr.len() * 2);
+        
+        Circulant::new(circulant_repr)
+    }
+}
+
 pub struct Toeplitz<F: FftField> {
     pub(crate) elems: Vec<Vec<F>>,
 }
@@ -43,7 +77,6 @@ impl<F: FftField> Toeplitz<F> {
         let next_pow2_degree = next_pow2(poly.degree());
         let to_extend = vec![F::zero(); next_pow2_degree - poly.degree()];
         coeffs_rev.extend_from_slice(&to_extend);
-        // println!("deg: {}, next pow 2: {}", poly.degree(), next_pow2);
 
         coeffs_rev.reverse();
 
@@ -85,9 +118,25 @@ impl<F: FftField> Toeplitz<F> {
 mod toeplitz_test {
     use ark_bn254::Fr;
     use ark_poly::{univariate::DensePolynomial, UVPolynomial};
+    use ark_std::test_rng;
     use ndarray::arr2;
 
-    use super::{is_toeplitz, Toeplitz};
+    use super::{is_toeplitz, Toeplitz, UpperToeplitz};
+
+    #[test]
+    fn test_upper_tp() {
+        let mut rng = test_rng();
+        let d = 17;
+
+        let poly = DensePolynomial::<Fr>::rand(d, &mut rng);
+
+        let t = UpperToeplitz::from_poly(&poly);
+        let c = t.to_circulant();
+
+        let t = Toeplitz::from_poly(&poly); 
+        let c2 = t.to_circulant();
+        assert_eq!(c.repr, c2.repr);
+    }
 
     #[test]
     fn test_check_correctness() {
