@@ -1,9 +1,9 @@
 use std::iter;
 
 use ark_ff::{FftField, Zero};
-use ark_poly::{domain::DomainCoeff, univariate::DensePolynomial, UVPolynomial};
+use ark_poly::{domain::DomainCoeff, univariate::DensePolynomial, Polynomial};
 
-use crate::circulant::Circulant;
+use crate::{circulant::Circulant, next_pow2};
 
 pub fn is_toeplitz<T: PartialEq>(elems: &Vec<Vec<T>>) {
     let n = elems.len();
@@ -38,13 +38,13 @@ impl<F: FftField> Toeplitz<F> {
         Self { elems }
     }
 
-    pub fn get(&self) -> Vec<&[F]> {
-        let x: Vec<&[F]> = self.elems.iter().map(|row| row.as_slice()).collect();
-        x
-    }
-
     pub fn from_poly(poly: &DensePolynomial<F>) -> Self {
-        let mut coeffs_rev = poly.coeffs()[..].to_vec();
+        let mut coeffs_rev = poly.coeffs[..].to_vec().clone();
+        let next_pow2_degree = next_pow2(poly.degree());
+        let to_extend = vec![F::zero(); next_pow2_degree - poly.degree()];
+        coeffs_rev.extend_from_slice(&to_extend);
+        // println!("deg: {}, next pow 2: {}", poly.degree(), next_pow2);
+
         coeffs_rev.reverse();
 
         let elems: Vec<Vec<_>> = (0..coeffs_rev.len() - 1)
@@ -61,7 +61,6 @@ impl<F: FftField> Toeplitz<F> {
 
     pub fn mul_by_vec<T: DomainCoeff<F> + std::ops::MulAssign<F> + Zero>(&self, x: &[T]) -> Vec<T> {
         let c = self.to_circulant();
-        // println!("{}", c);
         let zeroes = vec![T::zero(); x.len()];
         c.mul_by_vec(&[x, zeroes.as_slice()].concat())
     }
@@ -74,7 +73,7 @@ impl<F: FftField> Toeplitz<F> {
         first_half.reverse();
 
         let second_half_reversed = self.elems[0][..].to_vec();
-        let second_half: Vec<_> = iter::once(self.elems[0][0])
+        let second_half: Vec<_> = iter::once(second_half_reversed[0])
             .chain(second_half_reversed.into_iter().skip(1).rev())
             .collect();
 
@@ -109,7 +108,6 @@ mod toeplitz_test {
 
         let t = Toeplitz::from_poly(&poly);
         is_toeplitz(&t.elems);
-
 
         let elems = [
             [Fr::from(5), Fr::from(4), Fr::from(3), Fr::from(2)],

@@ -1,7 +1,19 @@
 pub mod circulant;
 pub mod toeplitz;
 
+use ark_std::log2;
 pub use toeplitz::Toeplitz;
+
+pub fn next_pow2(n: usize) -> usize {
+    let two: u32 = 2; 
+    let a: u32 = log2(n);
+
+    if two.pow(a - 1) == n as u32 {
+        return n;
+    }
+
+    return two.pow(a).try_into().unwrap()
+}
 
 #[cfg(test)]
 mod tests {
@@ -9,14 +21,14 @@ mod tests {
 
     use ark_bn254::{Fr, G1Affine, G1Projective, Bn254};
     use ark_ec::{msm::VariableBaseMSM, AffineCurve, PairingEngine};
-    use ark_ff::{One, PrimeField, Field};
+    use ark_ff::{One, PrimeField, Field, Zero, UniformRand};
     use ark_poly::{
         univariate::DensePolynomial, EvaluationDomain, GeneralEvaluationDomain, Polynomial,
         UVPolynomial,
     };
     use ark_std::test_rng;
 
-    use crate::Toeplitz;
+    use crate::{Toeplitz, next_pow2};
 
     pub fn commit<E: PairingEngine>(
         srs: &[E::G1Affine],
@@ -65,7 +77,7 @@ mod tests {
         let n = 64;
         let mut rng = test_rng();
 
-        let tau = Fr::from(2u64);
+        let tau = Fr::rand(&mut rng);
 
         let powers_of_tau: Vec<Fr> = iter::successors(Some(Fr::one()), |p| Some(*p * tau))
             .take(n)
@@ -85,12 +97,51 @@ mod tests {
         let poly = DensePolynomial::<Fr>::rand(n, &mut rng);
         let t = Toeplitz::from_poly(&poly);
 
-        let h_commitments = t.mul_by_vec(&srs_proj);
+        let h_commitments = t.mul_by_vec(&srs_proj)[..n].to_vec();
 
         let domain = GeneralEvaluationDomain::<Fr>::new(n).unwrap();
 
         let qs_fast = domain.fft(&h_commitments);
         let qs_slow = commit_in_each_omega_i::<Bn254>(&srs, &domain, &poly);
+        assert_eq!(qs_fast, qs_slow);
+    }
+
+    #[test]
+    fn test_smaller_degree() {
+        let n = 32;
+        let domain = GeneralEvaluationDomain::<Fr>::new(n).unwrap();
+        let mut rng = test_rng();
+
+        let tau = Fr::rand(&mut rng);
+
+        let powers_of_tau: Vec<Fr> = iter::successors(Some(Fr::one()), |p| Some(*p * tau))
+            .take(n)
+            .collect();
+
+        let g1_gen = G1Affine::prime_subgroup_generator();
+
+        let srs: Vec<G1Affine> = powers_of_tau
+            .iter()
+            .take(n)
+            .map(|tp| g1_gen.mul(tp.into_repr()).into())
+            .collect();
+
+        let d = 5;
+        let next_pow_2_deg = next_pow2(d);
+        let mut srs_proj: Vec<G1Projective> = srs.iter().take(next_pow_2_deg).map(|t| t.into_projective()).collect();
+        srs_proj.reverse();
+
+        let poly = DensePolynomial::<Fr>::rand(d, &mut rng);
+        let poly_clone = poly.clone();
+
+        let t = Toeplitz::from_poly(&poly);
+
+        let mut h_commitments = t.mul_by_vec(&srs_proj)[..next_pow_2_deg].to_vec();
+        let zero_cms = vec![G1Projective::zero(); n - next_pow_2_deg];
+        h_commitments.extend_from_slice(&zero_cms);
+
+        let qs_fast = domain.fft(&h_commitments);
+        let qs_slow = commit_in_each_omega_i::<Bn254>(&srs, &domain, &poly_clone);
         assert_eq!(qs_fast, qs_slow);
     }
 
