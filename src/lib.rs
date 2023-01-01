@@ -16,7 +16,7 @@ mod tests {
     };
     use ark_std::test_rng;
 
-    use crate::toeplitz::{UpperToeplitz, next_pow2};
+    use crate::toeplitz::{next_pow2, UpperToeplitz};
 
     pub fn commit<E: PairingEngine>(
         srs: &[E::G1Affine],

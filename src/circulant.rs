@@ -1,6 +1,6 @@
-use std::{fmt::Debug, marker::PhantomData};
 use ark_ff::FftField;
 use ark_poly::{domain::DomainCoeff, EvaluationDomain, GeneralEvaluationDomain};
+use std::{fmt::Debug, marker::PhantomData};
 
 pub fn is_pow_2(x: usize) -> bool {
     (x & (x - 1)) == 0
@@ -8,7 +8,7 @@ pub fn is_pow_2(x: usize) -> bool {
 
 pub struct Circulant<F: FftField, D: DomainCoeff<F> + Debug> {
     _f: PhantomData<F>,
-    _d: PhantomData<D>
+    _d: PhantomData<D>,
 }
 
 impl<F: FftField, D: DomainCoeff<F> + Debug> Circulant<F, D> {

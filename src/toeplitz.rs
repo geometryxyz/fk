@@ -2,9 +2,7 @@ use ark_ff::{FftField, Zero};
 use ark_poly::{domain::DomainCoeff, univariate::DensePolynomial, Polynomial, UVPolynomial};
 use ark_std::log2;
 
-use crate::{
-    circulant::{is_pow_2, Circulant},
-};
+use crate::circulant::{is_pow_2, Circulant};
 
 pub fn next_pow2(n: usize) -> usize {
     let two: u32 = 2;
@@ -17,15 +15,14 @@ pub fn next_pow2(n: usize) -> usize {
     two.pow(a).try_into().unwrap()
 }
 
-
 /*
     fm f(m-1) ... f1
     0   fm    ... f2
     .   ...   ... f3
     .   ... fm f(m-1)
-    0   ...   ... fm 
+    0   ...   ... fm
 */
-/// Succinct representation of Toeplitz matrix that is instantiated from polynomial 
+/// Succinct representation of Toeplitz matrix that is instantiated from polynomial
 /// on which mul by vector can be run efficiently
 pub struct UpperToeplitz<F: FftField> {
     pub(crate) repr: Vec<F>,
