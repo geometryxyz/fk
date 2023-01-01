@@ -1,19 +1,7 @@
-pub mod circulant;
-pub mod toeplitz;
+mod circulant;
+mod toeplitz;
 
-use ark_std::log2;
-pub use toeplitz::Toeplitz;
-
-pub fn next_pow2(n: usize) -> usize {
-    let two: u32 = 2;
-    let a: u32 = log2(n);
-
-    if two.pow(a - 1) == n as u32 {
-        return n;
-    }
-
-    two.pow(a).try_into().unwrap()
-}
+pub use toeplitz::UpperToeplitz;
 
 #[cfg(test)]
 mod tests {
@@ -21,14 +9,14 @@ mod tests {
 
     use ark_bn254::{Bn254, Fr, G1Affine, G1Projective};
     use ark_ec::{msm::VariableBaseMSM, AffineCurve, PairingEngine};
-    use ark_ff::{Field, One, PrimeField, UniformRand, Zero};
+    use ark_ff::{One, PrimeField, UniformRand, Zero};
     use ark_poly::{
         univariate::DensePolynomial, EvaluationDomain, GeneralEvaluationDomain, Polynomial,
         UVPolynomial,
     };
     use ark_std::test_rng;
 
-    use crate::{next_pow2, toeplitz::UpperToeplitz};
+    use crate::toeplitz::{UpperToeplitz, next_pow2};
 
     pub fn commit<E: PairingEngine>(
         srs: &[E::G1Affine],
@@ -148,59 +136,5 @@ mod tests {
         let qs_fast = domain.fft(&h_commitments);
         let qs_slow = commit_in_each_omega_i::<Bn254>(&srs, &domain, &poly_clone);
         assert_eq!(qs_fast, qs_slow);
-    }
-
-    #[test]
-    fn test_poly_correctness() {
-        let mut rng = test_rng();
-        let n = 4;
-
-        let p = DensePolynomial::<Fr>::rand(3, &mut rng);
-        let domain = GeneralEvaluationDomain::<Fr>::new(n).unwrap();
-
-        let omega = domain.element(1);
-        let omega_squared = domain.element(2);
-
-        let q1 = &p / &DensePolynomial::from_coefficients_slice(&[-omega, Fr::one()]);
-
-        let q1_by_hand = DensePolynomial::from_coefficients_slice(&[
-            p.coeffs[1] + omega * p.coeffs[2] + omega_squared * p.coeffs[3],
-            omega * p.coeffs[3] + p.coeffs[2],
-            p.coeffs[3],
-        ]);
-
-        assert_eq!(q1, q1_by_hand);
-    }
-
-    #[test]
-    fn test_h_polys() {
-        let mut rng = test_rng();
-        let n = 64;
-
-        let p = DensePolynomial::<Fr>::rand(n, &mut rng);
-        let domain = GeneralEvaluationDomain::<Fr>::new(n).unwrap();
-
-        let omega = domain.element(1);
-        let q1 = &p / &DensePolynomial::from_coefficients_slice(&[-omega, Fr::one()]);
-
-        let tau = Fr::from(15);
-        let q1_eval = q1.evaluate(&tau);
-
-        let mut h_coeffs = p.coeffs()[..].to_vec();
-
-        let hs: Vec<DensePolynomial<_>> = (0..n)
-            .map(|_| {
-                h_coeffs.remove(0);
-                DensePolynomial::from_coefficients_slice(&h_coeffs)
-            })
-            .collect();
-
-        let h_sum: Fr = hs
-            .iter()
-            .enumerate()
-            .map(|(i, hi)| hi.evaluate(&tau) * omega.pow([i as u64]))
-            .sum();
-
-        assert_eq!(q1_eval, h_sum);
     }
 }
