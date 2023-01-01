@@ -1,5 +1,22 @@
+use ark_std::log2;
+
 mod circulant;
 mod toeplitz;
+
+pub fn is_pow_2(x: usize) -> bool {
+    (x & (x - 1)) == 0
+}
+
+pub fn next_pow2(n: usize) -> usize {
+    let two: u32 = 2;
+    let a: u32 = log2(n);
+
+    if two.pow(a - 1) == n as u32 {
+        return n;
+    }
+
+    two.pow(a).try_into().unwrap()
+}
 
 pub use toeplitz::UpperToeplitz;
 
@@ -16,7 +33,7 @@ mod tests {
     };
     use ark_std::test_rng;
 
-    use crate::toeplitz::{next_pow2, UpperToeplitz};
+    use crate::{next_pow2, toeplitz::UpperToeplitz};
 
     pub fn commit<E: PairingEngine>(
         srs: &[E::G1Affine],

@@ -1,19 +1,7 @@
 use ark_ff::{FftField, Zero};
 use ark_poly::{domain::DomainCoeff, univariate::DensePolynomial, Polynomial, UVPolynomial};
-use ark_std::log2;
 
-use crate::circulant::{is_pow_2, Circulant};
-
-pub fn next_pow2(n: usize) -> usize {
-    let two: u32 = 2;
-    let a: u32 = log2(n);
-
-    if two.pow(a - 1) == n as u32 {
-        return n;
-    }
-
-    two.pow(a).try_into().unwrap()
-}
+use crate::{circulant::Circulant, is_pow_2, next_pow2};
 
 /*
     fm f(m-1) ... f1
