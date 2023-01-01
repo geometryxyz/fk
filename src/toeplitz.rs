@@ -3,7 +3,10 @@ use std::iter;
 use ark_ff::{FftField, Zero};
 use ark_poly::{domain::DomainCoeff, univariate::DensePolynomial, Polynomial, UVPolynomial};
 
-use crate::{circulant::{Circulant, is_pow_2}, next_pow2};
+use crate::{
+    circulant::{is_pow_2, Circulant},
+    next_pow2,
+};
 
 pub fn is_toeplitz<T: PartialEq>(elems: &Vec<Vec<T>>) {
     let n = elems.len();
@@ -30,7 +33,7 @@ fn check_diagonal<T: PartialEq>(elems: &Vec<Vec<T>>, i_start: usize, j_start: us
 }
 
 pub struct UpperToeplitz<F: FftField> {
-    pub(crate) repr: Vec<F>
+    pub(crate) repr: Vec<F>,
 }
 
 impl<F: FftField> UpperToeplitz<F> {
@@ -38,7 +41,7 @@ impl<F: FftField> UpperToeplitz<F> {
         let mut repr = poly.coeffs()[1..].to_vec();
         let next_pow2_degree = next_pow2(poly.degree());
         let to_extend = vec![F::zero(); next_pow2_degree - poly.degree()];
-        repr.extend_from_slice(&to_extend); 
+        repr.extend_from_slice(&to_extend);
         assert!(is_pow_2(repr.len()));
         Self { repr }
     }
@@ -50,15 +53,15 @@ impl<F: FftField> UpperToeplitz<F> {
     }
 
     pub fn to_circulant(&self) -> Circulant<F, F> {
-        let fm = self.repr.last().unwrap().clone();
+        let fm = *self.repr.last().unwrap();
         let mut circulant_repr = vec![F::zero(); self.repr.len() + 1];
 
-        circulant_repr[0] = fm; 
-        circulant_repr[self.repr.len()] = fm; 
+        circulant_repr[0] = fm;
+        circulant_repr[self.repr.len()] = fm;
 
         circulant_repr.extend_from_slice(&self.repr[..self.repr.len() - 1]);
         assert_eq!(circulant_repr.len(), self.repr.len() * 2);
-        
+
         Circulant::new(circulant_repr)
     }
 }
@@ -73,7 +76,7 @@ impl<F: FftField> Toeplitz<F> {
     }
 
     pub fn from_poly(poly: &DensePolynomial<F>) -> Self {
-        let mut coeffs_rev = poly.coeffs[..].to_vec().clone();
+        let mut coeffs_rev = poly.coeffs[..].to_vec();
         let next_pow2_degree = next_pow2(poly.degree());
         let to_extend = vec![F::zero(); next_pow2_degree - poly.degree()];
         coeffs_rev.extend_from_slice(&to_extend);
@@ -133,7 +136,7 @@ mod toeplitz_test {
         let t = UpperToeplitz::from_poly(&poly);
         let c = t.to_circulant();
 
-        let t = Toeplitz::from_poly(&poly); 
+        let t = Toeplitz::from_poly(&poly);
         let c2 = t.to_circulant();
         assert_eq!(c.repr, c2.repr);
     }
@@ -153,7 +156,13 @@ mod toeplitz_test {
 
     #[test]
     fn test_vector_mul() {
-        let poly = DensePolynomial::from_coefficients_slice(&[Fr::from(1u64), Fr::from(2u64), Fr::from(3u64), Fr::from(4u64), Fr::from(5u64)]);
+        let poly = DensePolynomial::from_coefficients_slice(&[
+            Fr::from(1u64),
+            Fr::from(2u64),
+            Fr::from(3u64),
+            Fr::from(4u64),
+            Fr::from(5u64),
+        ]);
 
         let t = Toeplitz::from_poly(&poly);
         is_toeplitz(&t.elems);
@@ -165,6 +174,7 @@ mod toeplitz_test {
             [Fr::from(0), Fr::from(0), Fr::from(0), Fr::from(5)],
         ];
 
+        #[allow(clippy::needless_range_loop)]
         for i in 0..4 {
             for j in 0..4 {
                 assert_eq!(elems[i][j], t.elems[i][j]);
@@ -172,12 +182,12 @@ mod toeplitz_test {
         }
 
         let x = vec![Fr::from(8), Fr::from(4), Fr::from(2), Fr::from(1)];
-        let m = arr2(&elems); 
+        let m = arr2(&elems);
         let v = arr2(&[[Fr::from(8)], [Fr::from(4)], [Fr::from(2)], [Fr::from(1)]]);
 
         /*
             5 4 3 2 | 8
-            0 5 4 3 | 4   
+            0 5 4 3 | 4
             0 0 5 4 | 2
             0 0 0 5 | 1
         */

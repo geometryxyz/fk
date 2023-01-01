@@ -34,7 +34,7 @@ impl<F: FftField, D: DomainCoeff<F> + Debug> Circulant<F, D> {
     pub fn mul_by_vec<T: DomainCoeff<F> + std::ops::MulAssign<D>>(&self, x: &Vec<T>) -> Vec<T> {
         assert_eq!(x.len(), self.repr.len());
         let mut res = self.domain.fft(x);
-        for i in 0..x.len() {
+        for (i, _) in x.iter().enumerate() {
             res[i] *= self.v[i]
         }
         self.domain.ifft(&res)
@@ -46,13 +46,13 @@ impl<F: FftField, D: DomainCoeff<F> + Debug> Display for Circulant<F, D> {
         let mut indices: Vec<i32> = (0..self.repr.len() as i32).map(|i| -i).collect();
 
         for _ in 0..self.repr.len() {
-            for j in 0..self.repr.len() {
-                write!(f, "a{}", indices[j])?;
-                indices[j] += 1;
-                write!(f, "{}", " ")?;
+            for index in indices.iter_mut().take(self.repr.len()) {
+                write!(f, "a{}", index)?;
+                *index += 1;
+                write!(f, " ")?;
             }
 
-            write!(f, "{}", "\n")?;
+            writeln!(f)?;
         }
         Ok(())
     }
