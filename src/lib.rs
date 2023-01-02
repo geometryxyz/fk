@@ -142,7 +142,6 @@ mod tests {
         srs_proj.reverse();
 
         let poly = DensePolynomial::<Fr>::rand(d, &mut rng);
-        let poly_clone = poly.clone();
 
         let t = UpperToeplitz::from_poly(&poly);
 
@@ -151,7 +150,7 @@ mod tests {
         h_commitments.extend_from_slice(&zero_cms);
 
         let qs_fast = domain.fft(&h_commitments);
-        let qs_slow = commit_in_each_omega_i::<Bn254>(&srs, &domain, &poly_clone);
+        let qs_slow = commit_in_each_omega_i::<Bn254>(&srs, &domain, &poly);
         assert_eq!(qs_fast, qs_slow);
     }
 }
